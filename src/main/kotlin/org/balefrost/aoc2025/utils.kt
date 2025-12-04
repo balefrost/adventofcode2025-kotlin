@@ -114,7 +114,14 @@ fun <T> cartesianProduct(items: List<List<T>>): Sequence<List<T>> {
     }
 }
 
-interface EightWay<T> {
+interface FourWay<T> : Iterable<T> {
+    val n: T
+    val e: T
+    val s: T
+    val w: T
+}
+
+interface EightWay<T> : Iterable<T> {
     val n: T
     val ne: T
     val e: T
@@ -132,7 +139,7 @@ data class XY(val x: Int, val y: Int) {
     operator fun minus(other: XY): XY = XY(x - other.x, y - other.y)
     operator fun plus(other: XY): XY = XY(x + other.x, y + other.y)
     operator fun unaryMinus() = XY(-x, -y)
-    operator fun div(other: XY): XY = XY(x / other.x, y/ other.y)
+    operator fun div(other: XY): XY = XY(x / other.x, y / other.y)
     val sign: XY get() = XY(x.sign, y.sign)
 
     fun turnLeft(): XY {
@@ -143,13 +150,45 @@ data class XY(val x: Int, val y: Int) {
         return XY(-y, x)
     }
 
-    val adjacent
-        get() = sequenceOf(
-            this + XY(1, 0),
-            this + XY(0, 1),
-            this + XY(-1, 0),
-            this + XY(0, -1)
-        )
+    val adjacent4Way: FourWay<XY>
+        get() = object : FourWay<XY> {
+            override val n: XY get() = this@XY + XY(0, -1)
+            override val e: XY get() = this@XY + XY(1, 0)
+            override val s: XY get() = this@XY + XY(0, 1)
+            override val w: XY get() = this@XY + XY(-1, 0)
+
+            override fun iterator(): Iterator<XY> {
+                return iterator {
+                    yield(n)
+                    yield(e)
+                    yield(s)
+                    yield(w)
+                }
+            }
+        }
+
+    val adjacent8Way: EightWay<XY>
+        get() = object : EightWay<XY> {
+            override val n: XY get() = this@XY + XY(0, -1)
+            override val ne: XY get() = this@XY + XY(1, -1)
+            override val e: XY get() = this@XY + XY(1, 0)
+            override val se: XY get() = this@XY + XY(1, 1)
+            override val s: XY get() = this@XY + XY(0, 1)
+            override val sw: XY get() = this@XY + XY(-1, 1)
+            override val w: XY get() = this@XY + XY(-1, 0)
+            override val nw: XY get() = this@XY + XY(-1, -1)
+
+            override fun iterator(): Iterator<XY> = iterator {
+                yield(n)
+                yield(ne)
+                yield(e)
+                yield(se)
+                yield(s)
+                yield(sw)
+                yield(w)
+                yield(nw)
+            }
+        }
 
     fun allWithinDistance(distance: Int): Sequence<XY> {
         return sequence {
@@ -165,43 +204,6 @@ data class XY(val x: Int, val y: Int) {
     fun manhattanDistanceTo(other: XY): Int {
         return abs(x - other.x) + abs(y - other.y)
     }
-
-    inner class Dirs8Way : EightWay<XY>, Iterable<XY> {
-        override val n: XY get() = this@XY + XY(0, -1)
-        override val ne: XY get() = this@XY + XY(1, -1)
-        override val e: XY get() = this@XY + XY(1, 0)
-        override val se: XY get() = this@XY + XY(1, 1)
-        override val s: XY get() = this@XY + XY(0, 1)
-        override val sw: XY get() = this@XY + XY(-1, 1)
-        override val w: XY get() = this@XY + XY(-1, 0)
-        override val nw: XY get() = this@XY + XY(-1, -1)
-
-        fun <T> map(fn: (XY) -> T): EightWay<T> {
-            return object : EightWay<T> {
-                override val n: T = fn(this@Dirs8Way.n)
-                override val ne: T = fn(this@Dirs8Way.ne)
-                override val e: T = fn(this@Dirs8Way.e)
-                override val se: T = fn(this@Dirs8Way.se)
-                override val s: T = fn(this@Dirs8Way.s)
-                override val sw: T = fn(this@Dirs8Way.sw)
-                override val w: T = fn(this@Dirs8Way.w)
-                override val nw: T = fn(this@Dirs8Way.nw)
-            }
-        }
-
-        override fun iterator(): Iterator<XY> = iterator {
-            yield(n)
-            yield(ne)
-            yield(e)
-            yield(se)
-            yield(s)
-            yield(sw)
-            yield(w)
-            yield(nw)
-        }
-    }
-
-    val dirs8way = Dirs8Way()
 }
 
 /**
@@ -218,7 +220,7 @@ data class LongXY(val x: Long, val y: Long) {
 
 data class WH(val w: Int, val h: Int)
 
-class MutableMap2DImpl(data: Iterable<Iterable<Char>>, val oobChar: Char?) : MutableMap2D {
+class MutableGrid2DImpl(data: Iterable<Iterable<Char>>, val oobChar: Char?) : MutableGrid2D {
     private val data: List<MutableList<Char>> = data.map { it.toMutableList() }
     override val dims: WH
 
@@ -248,8 +250,8 @@ class MutableMap2DImpl(data: Iterable<Iterable<Char>>, val oobChar: Char?) : Mut
             }
         }
 
-    override fun toMutableMap2D(): MutableMap2D {
-        return MutableMap2DImpl(data, oobChar)
+    override fun toMutableGrid2D(): MutableGrid2D {
+        return MutableGrid2DImpl(data, oobChar)
     }
 
     override fun set(pos: XY, value: Char) {
@@ -258,12 +260,12 @@ class MutableMap2DImpl(data: Iterable<Iterable<Char>>, val oobChar: Char?) : Mut
 
     override fun toString(): String {
         return " " + (0..<dims.w).joinToString("") { (it % 10).toString() } + "\n" +
-                data.withIndex().map { (index, chars) -> (index % 10).toString() + chars.joinToString("") }
-                    .joinToString("\n")
+                data.withIndex()
+                    .joinToString("\n") { (index, chars) -> (index % 10).toString() + chars.joinToString("") }
     }
 }
 
-interface Map2D {
+interface Grid2D {
     operator fun contains(pos: XY): Boolean
 
     operator fun get(pos: XY): Char
@@ -272,45 +274,20 @@ interface Map2D {
 
     val positions: Sequence<XY>
 
-    fun toMutableMap2D(): MutableMap2D
+    fun toMutableGrid2D(): MutableGrid2D
 }
 
-interface MutableMap2D : Map2D {
+interface MutableGrid2D : Grid2D {
     operator fun set(pos: XY, value: Char)
 }
 
-fun makeMutableMapFromLines(lines: List<String>, oobChar: Char? = null): MutableMap2D {
+fun makeMutableGridFromLines(lines: List<String>, oobChar: Char? = null): MutableGrid2D {
     check(lines.isNotEmpty() && lines.all { it.length == lines[0].length })
-    return MutableMap2DImpl(lines.map { it.toList() }, oobChar)
+    return MutableGrid2DImpl(lines.map { it.toList() }, oobChar)
 }
 
-fun makeMutableMap(w: Int, h: Int, backgroundChar: Char, oobChar: Char? = null): MutableMap2DImpl {
-    return MutableMap2DImpl((0..<h).map { (0..<w).map { backgroundChar } }, oobChar)
-}
-
-class StringBased2DMap(val lines: List<String>, val oobChar: Char? = null) {
-    operator fun contains(pos: XY): Boolean = pos.y in lines.indices && pos.x in lines[pos.y].indices
-
-    operator fun get(pos: XY): Char {
-        if (pos !in this) {
-            if (oobChar != null) {
-                return oobChar
-            }
-            throw IndexOutOfBoundsException("$pos")
-        }
-        return lines[pos.y][pos.x]
-    }
-
-    val dims get() = WH(lines[0].length, lines.size)
-
-    val positions
-        get() = sequence {
-            for (y in lines.indices) {
-                for (x in lines[y].indices) {
-                    yield(XY(x, y))
-                }
-            }
-        }
+fun makeMutableGrid(w: Int, h: Int, backgroundChar: Char, oobChar: Char? = null): MutableGrid2DImpl {
+    return MutableGrid2DImpl((0..<h).map { (0..<w).map { backgroundChar } }, oobChar)
 }
 
 val <T> List<T>.permutations: Sequence<List<T>>
