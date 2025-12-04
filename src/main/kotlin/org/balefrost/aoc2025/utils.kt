@@ -1,6 +1,11 @@
 package org.balefrost.aoc2025
 
 import java.io.InputStreamReader
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.coroutines.createCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 import kotlin.math.abs
 import kotlin.math.absoluteValue
 import kotlin.math.sign
@@ -15,6 +20,59 @@ fun readInputLines(filename: String): List<String> {
         return emptyList()
     }
     return allLines.subList(0, lastRelevantIndex + 1)
+}
+
+interface RecursiveContext {
+    suspend fun <T> recur(calc: suspend RecursiveContext.() -> T): T
+}
+
+fun <T> runRecursive(calc: suspend RecursiveContext.() -> T): T {
+    var result: Result<T>? = null
+    var nextContinuation: Continuation<Unit>? = null
+    val context = object : RecursiveContext {
+        override suspend fun <T> recur(calc: suspend RecursiveContext.() -> T): T {
+            return suspendCoroutine { cont ->
+                check(nextContinuation == null)
+                nextContinuation = calc.createCoroutine(this, Continuation(cont.context) { result ->
+                    check(nextContinuation == null)
+                    nextContinuation = Continuation(cont.context) {
+                        cont.resumeWith(result)
+                    }
+                })
+            }
+        }
+    }
+    check(nextContinuation == null)
+    nextContinuation = calc.createCoroutine(context, Continuation(EmptyCoroutineContext) { result = it })
+    while (nextContinuation != null) {
+        val c = nextContinuation
+        nextContinuation = null
+        c?.resume(Unit)
+    }
+
+    return checkNotNull(result).getOrThrow()
+}
+
+interface DynamicProgContext<K, R> {
+    suspend fun recur(key: K): R
+}
+
+fun <K, R : Any> doDynamicProg(target: K, calc: suspend DynamicProgContext<K, R>.(key: K) -> R): R {
+    return runRecursive {
+        val cache = mutableMapOf<K, R>()
+        val context = object : DynamicProgContext<K, R> {
+            override suspend fun recur(key: K): R {
+                val existing = cache[key]
+                if (existing != null) {
+                    return existing
+                }
+                val result = this@runRecursive.recur { calc(key) }
+                cache[key] = result
+                return result
+            }
+        }
+        context.recur(target)
+    }
 }
 
 fun <T> sortPartiallyOrdered(items: Iterable<T>, getDeps: (T) -> Iterable<T>): Iterable<T> {
