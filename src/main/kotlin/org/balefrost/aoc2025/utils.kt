@@ -316,6 +316,10 @@ class MutableGrid2DImpl(data: Iterable<Iterable<Char>>, val oobChar: Char?) : Mu
         data[pos.y][pos.x] = value
     }
 
+    override fun indexesOf(ch: Char): Sequence<XY> {
+        return positions.filter { get(it) == ch }
+    }
+
     override fun toString(): String {
         return " " + (0..<dims.w).joinToString("") { (it % 10).toString() } + "\n" +
                 data.withIndex()
@@ -333,6 +337,8 @@ interface Grid2D {
     val positions: Sequence<XY>
 
     fun toMutableGrid2D(): MutableGrid2D
+
+    fun indexesOf(ch: Char): Sequence<XY>
 }
 
 interface MutableGrid2D : Grid2D {
