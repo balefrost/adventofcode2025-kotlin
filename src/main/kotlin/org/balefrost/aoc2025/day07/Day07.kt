@@ -39,10 +39,10 @@ object Day07Part02 {
             if (pos.y == grid.dims.h) {
                 return@doDynamicProg 1L
             }
-            if (grid[pos + XY(0, 1)] == '^') {
-                recur(pos + XY(-1, 1)) + recur(pos + XY(1, 1))
+            if (grid[pos.s] == '^') {
+                recur(pos.sw) + recur(pos.se)
             } else {
-                recur(pos + XY(0, 1))
+                recur(pos.s)
             }
         })
     }

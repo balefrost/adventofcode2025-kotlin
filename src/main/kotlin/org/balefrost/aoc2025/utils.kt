@@ -172,28 +172,24 @@ fun <T> cartesianProduct(items: List<List<T>>): Sequence<List<T>> {
     }
 }
 
-interface FourWay<T> : Iterable<T> {
+interface FourWay<T> {
     val n: T
     val e: T
     val s: T
     val w: T
 }
 
-interface EightWay<T> : Iterable<T> {
-    val n: T
+interface EightWay<T> : FourWay<T> {
     val ne: T
-    val e: T
     val se: T
-    val s: T
     val sw: T
-    val w: T
     val nw: T
 }
 
 /**
  * Left-handed XY cartesian point
  */
-data class XY(val x: Int, val y: Int) {
+data class XY(val x: Int, val y: Int) : EightWay<XY> {
     operator fun minus(other: XY): XY = XY(x - other.x, y - other.y)
     operator fun plus(other: XY): XY = XY(x + other.x, y + other.y)
     operator fun unaryMinus() = XY(-x, -y)
@@ -208,45 +204,36 @@ data class XY(val x: Int, val y: Int) {
         return XY(-y, x)
     }
 
-    val adjacent4Way: FourWay<XY>
-        get() = object : FourWay<XY> {
-            override val n: XY get() = this@XY + XY(0, -1)
-            override val e: XY get() = this@XY + XY(1, 0)
-            override val s: XY get() = this@XY + XY(0, 1)
-            override val w: XY get() = this@XY + XY(-1, 0)
+    override val n: XY get() = this@XY + XY(0, -1)
+    override val ne: XY get() = this@XY + XY(1, -1)
+    override val e: XY get() = this@XY + XY(1, 0)
+    override val se: XY get() = this@XY + XY(1, 1)
+    override val s: XY get() = this@XY + XY(0, 1)
+    override val sw: XY get() = this@XY + XY(-1, 1)
+    override val w: XY get() = this@XY + XY(-1, 0)
+    override val nw: XY get() = this@XY + XY(-1, -1)
 
-            override fun iterator(): Iterator<XY> {
-                return iterator {
-                    yield(n)
-                    yield(e)
-                    yield(s)
-                    yield(w)
-                }
-            }
+    val adjacent4Way: Iterable<XY> get() = object : Iterable<XY> {
+        override fun iterator(): Iterator<XY> = iterator {
+            yield(n)
+            yield(e)
+            yield(s)
+            yield(w)
         }
+    }
 
-    val adjacent8Way: EightWay<XY>
-        get() = object : EightWay<XY> {
-            override val n: XY get() = this@XY + XY(0, -1)
-            override val ne: XY get() = this@XY + XY(1, -1)
-            override val e: XY get() = this@XY + XY(1, 0)
-            override val se: XY get() = this@XY + XY(1, 1)
-            override val s: XY get() = this@XY + XY(0, 1)
-            override val sw: XY get() = this@XY + XY(-1, 1)
-            override val w: XY get() = this@XY + XY(-1, 0)
-            override val nw: XY get() = this@XY + XY(-1, -1)
-
-            override fun iterator(): Iterator<XY> = iterator {
-                yield(n)
-                yield(ne)
-                yield(e)
-                yield(se)
-                yield(s)
-                yield(sw)
-                yield(w)
-                yield(nw)
-            }
+    val adjacent8Way: Iterable<XY> get() = object : Iterable<XY> {
+        override fun iterator(): Iterator<XY> = iterator {
+            yield(n)
+            yield(ne)
+            yield(e)
+            yield(se)
+            yield(s)
+            yield(sw)
+            yield(w)
+            yield(nw)
         }
+    }
 
     fun allWithinDistance(distance: Int): Sequence<XY> {
         return sequence {
