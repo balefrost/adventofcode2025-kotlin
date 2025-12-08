@@ -9,6 +9,7 @@ import kotlin.coroutines.suspendCoroutine
 import kotlin.math.abs
 import kotlin.math.absoluteValue
 import kotlin.math.sign
+import kotlin.math.sqrt
 
 fun readInputFile(filename: String) =
     InputStreamReader(ClassLoader.getSystemClassLoader().getResourceAsStream(filename)!!).use { it.readText() }
@@ -248,6 +249,19 @@ data class XY(val x: Int, val y: Int) : EightWay<XY> {
 
     fun manhattanDistanceTo(other: XY): Int {
         return abs(x - other.x) + abs(y - other.y)
+    }
+}
+
+data class XYZ(val x: Long, val y: Long, val z: Long) {
+    fun manhattanDistanceTo(other: XYZ): Long {
+        return abs(x - other.x) + abs(y - other.y) + abs(z - other.z)
+    }
+
+    fun distanceTo(other: XYZ): Double {
+        val xx = x - other.x
+        val yy = y - other.y
+        val zz = z - other.z
+        return sqrt(xx.toDouble() * xx + yy * yy + zz * zz)
     }
 }
 
