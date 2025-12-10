@@ -8,6 +8,8 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 import kotlin.math.abs
 import kotlin.math.absoluteValue
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.sign
 import kotlin.math.sqrt
 
@@ -76,6 +78,22 @@ fun <K, R : Any> doDynamicProg(target: K, calc: suspend DynamicProgContext<K, R>
     }
 }
 
+fun IntRange.sorted(): IntRange {
+    return min(first, last)..max(first, last)
+}
+
+infix fun IntRange.overlaps(other: IntRange): Boolean {
+    val a = this.sorted()
+    val b = other.sorted()
+    return b.last >= a.first && b.first <= a.last
+}
+
+operator fun IntRange.contains(other: IntRange): Boolean {
+    val a = this.sorted()
+    val b = other.sorted()
+    return a.first <= b.first && a.last >= b.last
+}
+
 fun <T> sortPartiallyOrdered(items: Iterable<T>, getDeps: (T) -> Iterable<T>): Iterable<T> {
     return sequence {
         val emitted = mutableSetOf<T>()
@@ -141,6 +159,32 @@ fun <T> sortPartiallyOrdered(items: Iterable<T>, getDeps: (T) -> Iterable<T>): I
     }.asIterable()
 }
 
+fun <T, R> Sequence<T>.chunkBy(f: (T) -> R): Sequence<List<T>> {
+    return sequence {
+        val iter = this@chunkBy.iterator()
+        if (!iter.hasNext()) {
+            return@sequence
+        }
+        val item = iter.next()
+        var items = mutableListOf(item)
+        var group = f(item)
+        while (iter.hasNext()) {
+            val item = iter.next()
+            val newGroup = f(item)
+            if (newGroup == group) {
+                items.add(item)
+            } else {
+                yield(items)
+                items = mutableListOf(item)
+                group = newGroup
+            }
+        }
+        if (items.isNotEmpty()) {
+            yield(items)
+        }
+    }
+}
+
 fun <T> binarySearch(items: List<T>, comparison: (T) -> Int): Int {
     var low = 0
     var high = items.size
@@ -196,6 +240,10 @@ data class XY(val x: Int, val y: Int) : EightWay<XY> {
     operator fun unaryMinus() = XY(-x, -y)
     operator fun div(other: XY): XY = XY(x / other.x, y / other.y)
     val sign: XY get() = XY(x.sign, y.sign)
+    fun abs(): XY = XY(abs(x), abs(y))
+    fun dot(other: XY): Double = x.toDouble() * other.x + y.toDouble() * other.y
+    fun pointsLeftOf(other: XY): Boolean = this.dot(other.turnLeft()) > 0
+    fun pointsRightOf(other: XY): Boolean = this.dot(other.turnRight()) > 0
 
     fun turnLeft(): XY {
         return XY(y, -x)
@@ -262,6 +310,28 @@ data class XYZ(val x: Long, val y: Long, val z: Long) {
         val yy = y - other.y
         val zz = z - other.z
         return sqrt(xx.toDouble() * xx + yy * yy + zz * zz)
+    }
+}
+
+data class Rect2D(val topLeft: XY, val wh: XY) {
+    val xRange: IntRange get() = topLeft.x..<(topLeft.x + wh.x)
+    val yRange: IntRange get() = topLeft.y..<(topLeft.y + wh.y)
+
+    val bottomRight: XY get() = XY(topLeft.x + wh.x - 1, topLeft.y + wh.y - 1)
+
+    val area get() = wh.x * wh.y
+
+    companion object {
+        fun fromCorners(a: XY, b: XY): Rect2D {
+            val x1 = min(a.x, b.x)
+            val x2 = max(a.x, b.x)
+            val y1 = min(a.y, b.y)
+            val y2 = max(a.y, b.y)
+            return Rect2D(
+                XY(x1, y1),
+                XY(x2 - x1 + 1, y2 - y1 + 1)
+            )
+        }
     }
 }
 
