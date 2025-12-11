@@ -61,6 +61,10 @@ interface DynamicProgContext<K, R> {
 }
 
 fun <K, R : Any> doDynamicProg(target: K, calc: suspend DynamicProgContext<K, R>.(key: K) -> R): R {
+    return doMultiDynamicProg(listOf(target), calc).getValue(target)
+}
+
+fun <K, R : Any> doMultiDynamicProg(targets: List<K>, calc: suspend DynamicProgContext<K, R>.(key: K) -> R): Map<K, R> {
     return runRecursive {
         val cache = mutableMapOf<K, R>()
         val context = object : DynamicProgContext<K, R> {
@@ -74,7 +78,11 @@ fun <K, R : Any> doDynamicProg(target: K, calc: suspend DynamicProgContext<K, R>
                 return result
             }
         }
-        context.recur(target)
+        for (t in targets) {
+            context.recur(t)
+        }
+
+        targets.associateWith { cache.getValue(it) }
     }
 }
 
